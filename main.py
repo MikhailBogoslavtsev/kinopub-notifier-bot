@@ -64,7 +64,7 @@ def main() -> None:
 
     # Fetch fresh items
     headers = {"Authorization": f"Bearer {kinopub_token}"}
-    params = {"sort": "created", "perpage": 50, "page": 1}
+    params = {"sort": "created-", "perpage": 50, "page": 1}
 
     response = requests.get(
         f"{KINOPUB_API_BASE}/v1/items",
