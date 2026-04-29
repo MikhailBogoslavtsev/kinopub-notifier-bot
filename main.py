@@ -104,7 +104,7 @@ def main() -> None:
     print(f"After filtering: {len(filtered)} items")
 
     if not filtered:
-        print("No items found, nothing to send")
+        send_telegram_message(telegram_bot_token, telegram_chat_id, "🎬 Новинок с рейтингом IMDb 6.5+ на этой неделе не появилось.")
         return
 
     # Format message
