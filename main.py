@@ -19,63 +19,6 @@ def get_env(name: str, required: bool = True, default: Optional[str] = None) -> 
     return (value or "").strip()
 
 
-def parse_iso_datetime(value: Any) -> Optional[datetime]:
-    if not value:
-        return None
-    if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(float(value), tz=timezone.utc)
-    if not isinstance(value, str):
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-
-def parse_date(value: Any) -> Optional[datetime]:
-    if not value:
-        return None
-    if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(float(value), tz=timezone.utc)
-    if isinstance(value, str):
-        parsed = parse_iso_datetime(value)
-        if parsed:
-            return parsed
-        for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
-            try:
-                return datetime.strptime(value, fmt).replace(tzinfo=timezone.utc)
-            except ValueError:
-                continue
-    return None
-
-
-def item_type(item: Dict[str, Any]) -> str:
-    raw = str(item.get("type", "")).lower()
-    if "serial" in raw or "series" in raw:
-        return "serial"
-    if "movie" in raw or "film" in raw:
-        return "movie"
-    seasons = item.get("seasons")
-    return "serial" if seasons else "movie"
-
-
-def extract_items(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
-    for key in ("items", "results", "data"):
-        value = payload.get(key)
-        if isinstance(value, list):
-            return [x for x in value if isinstance(x, dict)]
-    if isinstance(payload, list):
-        return [x for x in payload if isinstance(x, dict)]  # type: ignore[arg-type]
-    return []
-
-
-def to_text(value: Any, max_len: int = 220) -> str:
-    text = unescape(str(value or "")).replace("\n", " ").strip()
-    if len(text) > max_len:
-        return text[: max_len - 1].rstrip() + "…"
-    return text
-
-
 def item_link(item: Dict[str, Any]) -> str:
     slug = item.get("slug")
     item_id = item.get("id")
@@ -86,88 +29,11 @@ def item_link(item: Dict[str, Any]) -> str:
     return KINOPUB_WEB_BASE
 
 
-def fetch_recent_items(token: str, days: int = 7) -> List[Dict[str, Any]]:
-    headers = {"Authorization": f"Bearer {token}"}
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    params = {
-        "sort": "created",
-        "perpage": 200,
-        "page": 1,
-        "from": cutoff.strftime("%Y-%m-%d"),
-    }
-
-    response = requests.get(
-        f"{KINOPUB_API_BASE}/v1/items",
-        headers=headers,
-        params=params,
-        timeout=30,
-    )
-    response.raise_for_status()
-
-    payload = response.json()
-    items = extract_items(payload)
-
-    recent_items: List[Dict[str, Any]] = []
-    for item in items:
-        added_at = (
-            parse_iso_datetime(item.get("created_at"))
-            or parse_date(item.get("created"))
-            or parse_date(item.get("updated"))
-            or parse_date(item.get("publish_date"))
-        )
-        if added_at is None:
-            # If API does not provide reliable timestamps, keep item and let API-side
-            # date filter (`from`) drive recency.
-            recent_items.append(item)
-            continue
-        if added_at.astimezone(timezone.utc) >= cutoff:
-            recent_items.append(item)
-    return recent_items
-
-
-def apply_filters(items: Iterable[Dict[str, Any]], filter_year: int, filter_type: str) -> List[Dict[str, Any]]:
-    filtered: List[Dict[str, Any]] = []
-    for item in items:
-        year = item.get("year")
-        item_kind = item_type(item)
-
-        if year is not None and str(year).isdigit():
-            if int(year) < filter_year:
-                continue
-
-        if filter_type != "all" and item_kind != filter_type:
-            continue
-
-        filtered.append(item)
-    return filtered
-
-
-def format_message(items: List[Dict[str, Any]]) -> str:
-    chunks = []
-    for item in items:
-        title = to_text(item.get("title") or item.get("name") or "Untitled", max_len=120)
-        year = item.get("year") or "N/A"
-        rating = item.get("rating") or item.get("imdb_rating") or "N/A"
-        description = to_text(
-            item.get("short_description")
-            or item.get("plot")
-            or item.get("description")
-            or "No description.",
-            max_len=240,
-        )
-        link = item_link(item)
-        chunks.append(
-            "\n".join(
-                [
-                    f"🎬 <b>{title}</b>",
-                    f"Year: {year}",
-                    f"Rating: {rating}",
-                    f"{description}",
-                    f"<a href=\"{link}\">Open in kino.pub</a>",
-                ]
-            )
-        )
-    return "\n\n" + ("\n\n".join(chunks))
+def to_text(value: Any, max_len: int = 220) -> str:
+    text = unescape(str(value or "")).replace("\n", " ").strip()
+    if len(text) > max_len:
+        return text[: max_len - 1].rstrip() + "…"
+    return text
 
 
 def send_telegram_message(bot_token: str, chat_id: str, text: str) -> None:
@@ -190,25 +56,66 @@ def main() -> None:
     kinopub_token = get_env("KINOPUB_TOKEN")
     telegram_bot_token = get_env("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = get_env("TELEGRAM_CHAT_ID")
-    filter_year_raw = get_env("FILTER_YEAR", required=False, default="1900")
+    filter_year = int(get_env("FILTER_YEAR", required=False, default="1900"))
     filter_type = get_env("FILTER_TYPE", required=False, default="all").lower()
 
-    if filter_type not in {"all", "movie", "serial"}:
-        raise ValueError("FILTER_TYPE must be one of: all, movie, serial.")
+    print(f"Starting KinoPub notifier...")
+    print(f"Filter: year >= {filter_year}, type = {filter_type}")
 
-    try:
-        filter_year = int(filter_year_raw)
-    except ValueError as exc:
-        raise ValueError("FILTER_YEAR must be an integer.") from exc
+    # Fetch fresh items
+    headers = {"Authorization": f"Bearer {kinopub_token}"}
+    params = {"sort": "created", "perpage": 50, "page": 1}
 
-    recent_items = fetch_recent_items(kinopub_token, days=7)
-    filtered_items = apply_filters(recent_items, filter_year=filter_year, filter_type=filter_type)
+    response = requests.get(
+        f"{KINOPUB_API_BASE}/v1/items",
+        headers=headers,
+        params=params,
+        timeout=30,
+    )
+    response.raise_for_status()
+    payload = response.json()
 
-    if not filtered_items:
+    items = payload.get("items", [])
+    print(f"Fetched {len(items)} items from API")
+
+    if items:
+        print(f"First item sample: {items[0]}")
+
+    # Filter
+    filtered = []
+    for item in items:
+        year = item.get("year")
+        kind = str(item.get("type", "")).lower()
+
+        if year and int(year) < filter_year:
+            continue
+        if filter_type != "all":
+            if filter_type == "serial" and "serial" not in kind:
+                continue
+            if filter_type == "movie" and "movie" not in kind:
+                continue
+        filtered.append(item)
+
+    print(f"After filtering: {len(filtered)} items")
+
+    if not filtered:
+        print("No items found, nothing to send")
         return
 
-    message = "🆕 New KinoPub additions:\n" + format_message(filtered_items[:20])
+    # Format message
+    chunks = []
+    for item in filtered[:20]:
+        title = to_text(item.get("title") or item.get("name") or "Untitled", max_len=120)
+        year = item.get("year") or "N/A"
+        rating = item.get("rating") or "N/A"
+        description = to_text(item.get("plot") or item.get("description") or "", max_len=200)
+        link = item_link(item)
+        chunks.append(f"🎬 <b>{title}</b> ({year}) ⭐{rating}\n{description}\n<a href='{link}'>Смотреть</a>")
+
+    message = "🆕 Новинки KinoPub:\n\n" + "\n\n".join(chunks)
+    print(f"Sending message with {len(filtered)} items...")
     send_telegram_message(telegram_bot_token, telegram_chat_id, message)
+    print("Done!")
 
 
 if __name__ == "__main__":
