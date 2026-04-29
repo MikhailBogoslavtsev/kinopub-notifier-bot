@@ -104,7 +104,7 @@ def main() -> None:
 
     # Format message
     chunks = []
-    for item in filtered[:20]:
+    for item in filtered[:10]:
         title = to_text(item.get("title") or item.get("name") or "Untitled", max_len=120)
         year = item.get("year") or "N/A"
         rating = item.get("rating") or "N/A"
@@ -113,6 +113,7 @@ def main() -> None:
         chunks.append(f"🎬 <b>{title}</b> ({year}) ⭐{rating}\n{description}\n<a href='{link}'>Смотреть</a>")
 
     message = "🆕 Новинки KinoPub:\n\n" + "\n\n".join(chunks)
+    message = message[:4000]  # Telegram limit
     print(f"Sending message with {len(filtered)} items...")
     send_telegram_message(telegram_bot_token, telegram_chat_id, message)
     print("Done!")
