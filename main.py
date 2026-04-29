@@ -86,6 +86,7 @@ def main() -> None:
     for item in items:
         year = item.get("year")
         kind = str(item.get("type", "")).lower()
+        imdb = item.get("imdb_rating") or 0
 
         if year and int(year) < filter_year:
             continue
@@ -94,6 +95,10 @@ def main() -> None:
                 continue
             if filter_type == "movie" and "movie" not in kind:
                 continue
+        if imdb < 6.5:
+            continue
+        if kind not in ("movie",):
+            continue
         filtered.append(item)
 
     print(f"After filtering: {len(filtered)} items")
