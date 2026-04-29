@@ -95,7 +95,7 @@ def main() -> None:
                 continue
             if filter_type == "movie" and "movie" not in kind:
                 continue
-        if imdb > 0 and imdb < 6.5:
+        if imdb < 6.5:
             continue
         if kind not in ("movie",):
             continue
@@ -112,7 +112,7 @@ def main() -> None:
     for item in filtered[:10]:
         title = to_text(item.get("title") or item.get("name") or "Untitled", max_len=120)
         year = item.get("year") or "N/A"
-        rating = item.get("rating") or "N/A"
+        rating = item.get("imdb_rating") or "N/A"
         description = to_text(item.get("plot") or item.get("description") or "", max_len=200)
         link = item_link(item)
         chunks.append(f"🎬 <b>{title}</b> ({year}) ⭐{rating}\n{description}\n<a href='{link}'>Смотреть</a>")
