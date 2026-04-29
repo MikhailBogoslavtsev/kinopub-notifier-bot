@@ -95,7 +95,7 @@ def main() -> None:
                 continue
             if filter_type == "movie" and "movie" not in kind:
                 continue
-        if imdb < 6.5:
+        if imdb > 0 and imdb < 6.5:
             continue
         if kind not in ("movie",):
             continue
