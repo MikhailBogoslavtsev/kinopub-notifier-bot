@@ -1,4 +1,4 @@
-name: KinoPub Notifier
+name: Streaming Notifier
 
 on:
   schedule:
@@ -16,7 +16,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python main.py
         env:
-          KINOPUB_TOKEN: ${{ secrets.KINOPUB_TOKEN }}
+          STREAMING_TOKEN: ${{ secrets.STREAMING_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FILTER_YEAR: ${{ secrets.FILTER_YEAR }}

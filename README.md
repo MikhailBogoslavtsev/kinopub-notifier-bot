@@ -1,11 +1,11 @@
-# KinoPub Notifier Bot
+# Streaming Notifier Bot
 
-Simple Python bot that checks KinoPub for newly added titles from the last 7 days and sends them to Telegram.
+Simple Python bot that checks a streaming service for newly added titles from the last 7 days and sends them to Telegram.
 
 ## Features
 
-- Uses KinoPub API: `https://api.service-kp.com`
-- Authenticates with `KINOPUB_TOKEN`
+- Uses streaming service API: `https://api.service-kp.com`
+- Authenticates with `STREAMING_TOKEN`
 - Fetches recent titles (last 7 days)
 - Filters by:
   - `FILTER_YEAR` (minimum year)
@@ -15,7 +15,7 @@ Simple Python bot that checks KinoPub for newly added titles from the last 7 day
   - year
   - rating
   - short description
-  - link to `kino.pub`
+  - link to the streaming service
 - Sends nothing if no matching new content is found
 
 ## Project Files
@@ -43,7 +43,7 @@ Simple Python bot that checks KinoPub for newly added titles from the last 7 day
 
 4. Fill `.env` values:
 
-   - `KINOPUB_TOKEN` — your KinoPub access token
+   - `STREAMING_TOKEN` — your streaming service access token
    - `TELEGRAM_BOT_TOKEN` — your Telegram bot token
    - `TELEGRAM_CHAT_ID` — target chat ID
    - `FILTER_YEAR` — minimum release year (example: `2024`)
@@ -62,7 +62,7 @@ The workflow runs:
 
 Add these repository secrets in GitHub:
 
-- `KINOPUB_TOKEN`
+- `STREAMING_TOKEN`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `FILTER_YEAR`
