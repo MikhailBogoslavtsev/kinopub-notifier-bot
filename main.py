@@ -7,8 +7,8 @@ import requests
 from dotenv import load_dotenv
 
 
-KINOPUB_API_BASE = "https://api.service-kp.com"
-KINOPUB_WEB_BASE = "https://kino.pub"
+STREAMING_API_BASE = "https://api.service-kp.com"
+STREAMING_WEB_BASE = "https://kino.pub"
 TELEGRAM_API_BASE = "https://api.telegram.org"
 
 
@@ -23,10 +23,10 @@ def item_link(item: Dict[str, Any]) -> str:
     slug = item.get("slug")
     item_id = item.get("id")
     if slug:
-        return f"{KINOPUB_WEB_BASE}/{slug}"
+        return f"{STREAMING_WEB_BASE}/{slug}"
     if item_id is not None:
-        return f"{KINOPUB_WEB_BASE}/item/view/{item_id}"
-    return KINOPUB_WEB_BASE
+        return f"{STREAMING_WEB_BASE}/item/view/{item_id}"
+    return STREAMING_WEB_BASE
 
 
 def to_text(value: Any, max_len: int = 220) -> str:
@@ -53,21 +53,21 @@ def send_telegram_message(bot_token: str, chat_id: str, text: str) -> None:
 def main() -> None:
     load_dotenv()
 
-    kinopub_token = get_env("KINOPUB_TOKEN")
+    streaming_token = get_env("STREAMING_TOKEN")
     telegram_bot_token = get_env("TELEGRAM_BOT_TOKEN")
     telegram_chat_id = get_env("TELEGRAM_CHAT_ID")
     filter_year = int(get_env("FILTER_YEAR", required=False, default="1900"))
     filter_type = get_env("FILTER_TYPE", required=False, default="all").lower()
 
-    print(f"Starting KinoPub notifier...")
+    print(f"Starting streaming service notifier...")
     print(f"Filter: year >= {filter_year}, type = {filter_type}")
 
     # Fetch fresh items
-    headers = {"Authorization": f"Bearer {kinopub_token}"}
+    headers = {"Authorization": f"Bearer {streaming_token}"}
     params = {"sort": "created-", "perpage": 50, "page": 1}
 
     response = requests.get(
-        f"{KINOPUB_API_BASE}/v1/items",
+        f"{STREAMING_API_BASE}/v1/items",
         headers=headers,
         params=params,
         timeout=30,
@@ -117,7 +117,7 @@ def main() -> None:
         link = item_link(item)
         chunks.append(f"🎬 <b>{title}</b> ({year}) ⭐{rating}\n{description}\n<a href='{link}'>Смотреть</a>")
 
-    message = "🆕 Новинки KinoPub:\n\n" + "\n\n".join(chunks)
+    message = "🆕 Новинки streaming service:\n\n" + "\n\n".join(chunks)
     message = message[:4000]  # Telegram limit
     print(f"Sending message with {len(filtered)} items...")
     send_telegram_message(telegram_bot_token, telegram_chat_id, message)
