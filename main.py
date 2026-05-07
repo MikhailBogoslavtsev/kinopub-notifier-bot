@@ -109,13 +109,13 @@ def main() -> None:
 
     # Format message
     chunks = []
-    for item in filtered[:10]:
+    for item in filtered[:20]:
         title = to_text(item.get("title") or item.get("name") or "Untitled", max_len=120)
         year = item.get("year") or "N/A"
         rating = item.get("imdb_rating") or "N/A"
-        description = to_text(item.get("plot") or item.get("description") or "", max_len=200)
+        countries = ", ".join([c.get("title", "") for c in item.get("countries", [])]) or "N/A"
         link = item_link(item)
-        chunks.append(f"🎬 <b>{title}</b> ({year}) ⭐{rating}\n{description}\n<a href='{link}'>Смотреть</a>")
+        chunks.append(f"🎬 <b>{title}</b> ({year}) | {countries} | ⭐{rating} | <a href='{link}'>Смотреть</a>")
 
     message = "🆕 Новинки streaming service:\n\n" + "\n\n".join(chunks)
     message = message[:4000]  # Telegram limit
